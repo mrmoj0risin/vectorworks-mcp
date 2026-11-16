@@ -78,7 +78,7 @@ class Bridge:
         job_path = self.jobs / f"{job_id}.json"
         result_path = self.results / f"{job_id}.json"
         from vwmcp.operation import writing
-        job = {"id": job_id, "code": code, "created": time.time(), "ttl": timeout}
+        job = {"protocol_version": 2, "id": job_id, "code": code, "created": time.time(), "ttl": timeout}
         if writing.get():
             if not self.bound_document:
                 raise BridgeError("document_not_bound")

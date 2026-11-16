@@ -97,6 +97,8 @@ def run_pending(root=DEFAULT_ROOT, vs_module=None, max_jobs=1):
         try:
             with open(claimed, encoding="utf-8") as f:
                 job = json.load(f)
+            if job.get("protocol_version") != 2:
+                raise RuntimeError("incompatible_client: reconnect MCP using server 0.2 or newer")
             ttl = job.get("ttl")
             if ttl is not None and started - job.get("created", started) > ttl:
                 res["error"] = "job expired before Vectorworks picked it up"

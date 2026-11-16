@@ -25,3 +25,6 @@ launcher after saving documents if the live bridge version remains old.
 Development: `uv sync --group dev`, `uv run pytest -q`, `uv build --wheel`.
 Test live only on a saved copy in the configured project directory. Keep
 production installed from a built wheel, separate from the development tree.
+
+Bridge protocol 2 rejects clients from release 0.1 before executing their code.
+Reconnect every Codex chat after deployment; cached 0.1 servers cannot write.

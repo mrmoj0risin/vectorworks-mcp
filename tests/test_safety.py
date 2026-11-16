@@ -47,7 +47,7 @@ def test_unfinished_job_blocks_new_work(tmp_path):
 ])
 def test_guard_rejects_before_executing(tmp_path, actual, allowed, error):
     jobs = tmp_path / 'jobs'; jobs.mkdir()
-    job = {'code': 'vs.calls.append("WRITE")', 'expected_document': '/projects/A.vwx', 'allowed_root': allowed}
+    job = {'protocol_version': 2, 'code': 'vs.calls.append("WRITE")', 'expected_document': '/projects/A.vwx', 'allowed_root': allowed}
     (jobs / 'one.json').write_text(json.dumps(job))
     vs = SimpleNamespace(GetFPathName=lambda: actual, calls=[])
     vwmcp_bridge.run_pending(tmp_path, vs_module=vs)
@@ -113,3 +113,12 @@ def test_same_filename_has_separate_journal_history(tmp_path):
     j.record('/b/Plot.vwx', 'insert', [{'uuid': 'two'}])
     assert j.pop('/a/Plot.vwx')['ops'] == [{'uuid': 'one'}]
     assert j.pop('/b/Plot.vwx')['ops'] == [{'uuid': 'two'}]
+
+
+def test_old_client_cannot_execute_code(tmp_path):
+    jobs = tmp_path / 'jobs'; jobs.mkdir()
+    (jobs / 'old.json').write_text(json.dumps({'code': 'vs.calls.append("WRITE")'}))
+    vs = SimpleNamespace(calls=[])
+    vwmcp_bridge.run_pending(tmp_path, vs_module=vs)
+    result = json.loads((tmp_path / 'results/old.json').read_text())
+    assert 'incompatible_client' in result['error'] and not vs.calls
