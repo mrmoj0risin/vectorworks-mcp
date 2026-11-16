@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from mcp.server.mcpserver.exceptions import ToolError
 
+from vwmcp.operation import operation
 from vwmcp import app
 from vwmcp.app import READ, WRITE, mcp, vw
 
@@ -64,6 +65,7 @@ def format_report(rows: list[dict], fields: list[str], fmt: str) -> str:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_list_lighting_devices(
     position: str | None = None,
     layer: str | None = None,
@@ -83,6 +85,7 @@ def vw_list_lighting_devices(
 
 
 @mcp.tool(annotations=WRITE)
+@operation(write=True)
 def vw_set_lighting_device_fields(updates: list[dict[str, Any]]) -> list[dict]:
     """Bulk-edit Lighting Device fields in one undo step.
 
@@ -113,6 +116,7 @@ def vw_set_lighting_device_fields(updates: list[dict[str, Any]]) -> list[dict]:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_list_positions(include_devices: bool = True) -> dict:
     """Lighting positions (Light Position Obj, Lighting Pipe, Ladder, Truss,
     Hanging Position) with the devices whose Position field names them.
@@ -122,6 +126,7 @@ def vw_list_positions(include_devices: bool = True) -> dict:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_lighting_device_report(
     fields: list[str] | None = None,
     sort_by: str | None = "Channel",

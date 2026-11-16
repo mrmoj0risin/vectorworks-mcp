@@ -6,7 +6,7 @@ import vwmcp_bridge as bridge
 
 def write_job(root, job_id, code, **extra):
     (root / "jobs").mkdir(parents=True, exist_ok=True)
-    job = {"id": job_id, "code": code, "created": time.time(), **extra}
+    job = {"protocol_version": 2, "id": job_id, "code": code, "created": time.time(), **extra}
     (root / "jobs" / f"{job_id}.json").write_text(json.dumps(job))
 
 

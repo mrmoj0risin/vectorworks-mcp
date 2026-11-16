@@ -33,6 +33,10 @@ class FakeVW:
 
 @pytest.fixture
 def fake(tmp_path, monkeypatch):
+    from vwmcp.client import Bridge
+    b = Bridge(root=tmp_path, trigger=lambda: None)
+    b.bound_document = "Plot.vwx"
+    monkeypatch.setattr(app, "get_bridge", lambda: b)
     f = FakeVW()
     for mod in (app, generic, spotlight):
         monkeypatch.setattr(mod, "vw", f)

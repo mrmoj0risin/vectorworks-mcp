@@ -1,3 +1,7 @@
+> Our macOS fork: development version 0.2 adds document binding, a shared
+> operation lock and `vw_doctor`. See [migration notes](docs/fork-0.2.md).
+> Read-only tools work as before; writes require an explicit binding.
+
 # Vectorworks MCP
 
 <!-- mcp-name: io.github.giorgiomoroder/vectorworks-mcp -->

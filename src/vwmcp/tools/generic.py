@@ -6,6 +6,7 @@ from typing import Any
 
 from mcp.server.mcpserver.exceptions import ToolError
 
+from vwmcp.operation import operation
 from vwmcp import app
 from vwmcp.app import READ, WRITE, mcp, vw
 from vwmcp.client import BridgeError
@@ -42,6 +43,7 @@ def _run_raw(code: str) -> dict:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_ping() -> dict:
     """Check the Vectorworks bridge: returns Vectorworks version, active document
     and bridge version. Warns if the installed bridge doesn't match this server."""
@@ -73,6 +75,7 @@ def vw_ping() -> dict:
 
 
 @mcp.tool(annotations=WRITE)
+@operation(write=True)
 def vw_exec_python(code: str, modifies_document: bool = True) -> dict:
     """Run arbitrary Python inside Vectorworks with `vs` in scope.
 
@@ -91,6 +94,7 @@ def vw_exec_python(code: str, modifies_document: bool = True) -> dict:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_vs_lookup(query: str, limit: int = 25) -> list[dict]:
     """Search the live vs.* API (names and built-in docs) of the running
     Vectorworks, e.g. "record field", "symbol insert", "LDevice". Returns
@@ -102,24 +106,28 @@ def vw_vs_lookup(query: str, limit: int = 25) -> list[dict]:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_document_info() -> dict:
     """Active document: name, path, units, active layer/class, counts, selection size."""
     return vw("document_info")
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_list_layers() -> list[dict]:
     """All layers (design and sheet) with visibility and which one is active."""
     return vw("list_layers")
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_list_classes(name_contains: str | None = None) -> list[str]:
     """All class names, optionally filtered by a case-insensitive substring."""
     return vw("list_classes", name_contains=name_contains)
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_get_selection(limit: int = 500) -> list[dict]:
     """Selected objects on the active layer: uuid, type, name, class, layer,
     bbox, attached records, and symbol / plug-in name where relevant."""
@@ -127,6 +135,7 @@ def vw_get_selection(limit: int = 500) -> list[dict]:
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_find_objects(
     class_name: str | None = None,
     layer: str | None = None,
@@ -148,6 +157,7 @@ def vw_find_objects(
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_get_record(uuid: str, record: str) -> dict[str, Any]:
     """All field values of a record (or a plug-in object's parameters, using
     its plug-in name as the record) on the object with this UUID."""
@@ -155,6 +165,7 @@ def vw_get_record(uuid: str, record: str) -> dict[str, Any]:
 
 
 @mcp.tool(annotations=WRITE)
+@operation(write=True)
 def vw_set_record(uuid: str, record: str, values: dict[str, Any]) -> dict[str, Any]:
     """Set record fields (or plug-in parameters) on one object; unknown field
     names are rejected before anything changes. One undo step. Returns the
@@ -168,6 +179,7 @@ def vw_set_record(uuid: str, record: str, values: dict[str, Any]) -> dict[str, A
 
 
 @mcp.tool(annotations=READ)
+@operation()
 def vw_list_symbols(
     name_contains: str | None = None, folder: str | None = None, limit: int = 1000
 ) -> list[dict]:
@@ -177,6 +189,7 @@ def vw_list_symbols(
 
 
 @mcp.tool(annotations=WRITE)
+@operation(write=True)
 def vw_insert_symbol(
     name: str,
     x: float,
@@ -199,6 +212,7 @@ def vw_insert_symbol(
 
 
 @mcp.tool(annotations=WRITE)
+@operation(write=True)
 def vw_revert_last() -> dict:
     """Undo exactly the last MCP write in the active document: restores the
     previous field values of vw_set_record / vw_set_lighting_device_fields,
@@ -217,3 +231,52 @@ def vw_revert_last() -> dict:
         journal.record(entry["document"], entry["tool"], entry["ops"])  # put it back
         raise
     return {"reverted_tool": entry["tool"], **result}
+
+
+@mcp.tool(annotations=READ)
+@operation()
+def vw_bind_document(path: str) -> dict:
+    """Bind this MCP client's writes to the full path of the active saved .vwx file.
+
+    Switching documents requires an explicit rebind. Configure
+    VWMCP_ALLOWED_PROJECT_ROOT to restrict writes to a project directory.
+    """
+    import os
+    from pathlib import Path
+    app.get_bridge().bound_document = None
+    expected = Path(path).expanduser()
+    if not expected.is_absolute() or expected.suffix.lower() != '.vwx':
+        raise ToolError('invalid_project_path: use an absolute .vwx path')
+    expected = expected.resolve()
+    allowed = os.environ.get('VWMCP_ALLOWED_PROJECT_ROOT')
+    if allowed and not expected.is_relative_to(Path(allowed).expanduser().resolve()):
+        raise ToolError('project_outside_allowed_root')
+    probe = app.get_bridge().run('result = True')
+    if probe.get('bridge_version') != app.EXPECTED_BRIDGE_VERSION:
+        raise ToolError('bridge_version_mismatch: install the matching plugin before binding')
+    info = vw('document_info')
+    actual = info.get('path', '')
+    if not actual or Path(actual).resolve() != expected:
+        raise ToolError('wrong_document: open the requested saved project before binding')
+    app.get_bridge().bound_document = str(expected)
+    return {'bound_document': str(expected), 'write_guard': True}
+
+
+@mcp.tool(annotations=READ)
+def vw_doctor() -> dict:
+    """Inspect local bridge configuration without executing a CAD job.
+
+    Reports unfinished jobs even when normal operations are blocked.
+    Use vw_ping afterwards to verify the menu command and live bridge version.
+    """
+    import os
+    from vwmcp.trigger import mac_app_uptime, DEFAULT_APP
+    b = app.get_bridge()
+    pending = sorted(p.stem for p in b.jobs.glob('*.running'))
+    return {'server_bridge_version': app.EXPECTED_BRIDGE_VERSION,
+            'app': DEFAULT_APP, 'app_uptime_seconds': mac_app_uptime(DEFAULT_APP),
+            'bound_document': b.bound_document,
+            'allowed_project_root': os.environ.get('VWMCP_ALLOWED_PROJECT_ROOT'),
+            'unfinished_jobs': pending, 'queued_jobs': len(list(b.jobs.glob('*.json'))),
+            'log_path': str(b.log_path),
+            'next_step': 'Inspect unfinished jobs; do not repeat writes' if pending else 'Call vw_ping, then vw_bind_document before writing'}

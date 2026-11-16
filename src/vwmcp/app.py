@@ -14,7 +14,7 @@ from vwmcp import calls
 from vwmcp.client import Bridge, BridgeError
 from vwmcp.journal import Journal
 
-EXPECTED_BRIDGE_VERSION = "0.1.0"
+EXPECTED_BRIDGE_VERSION = "0.2.0"
 # Vectorworks major versions this release was tested against (31 = 2026).
 TESTED_VW_MAJORS = {31: "2026"}
 
@@ -30,6 +30,7 @@ inside the user's open document via the "MCP Run Job" menu command.
 - Objects are identified by UUID (stable across calls); never cache handles.
 - Vectorworks embeds Python 3.9: code sent to vw_exec_python must be 3.9-
   compatible. Use vw_vs_lookup to find vs.* functions and signatures.
+- Before any write call vw_bind_document with the full project path. Rebind after switching projects.
 - Prefer typed tools (lighting devices, records, find) over raw Python.
 """
 

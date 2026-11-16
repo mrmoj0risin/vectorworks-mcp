@@ -204,7 +204,7 @@ def _write_fields(h, record, values):
 
 
 def current_document():
-    return _str(vs.GetFName())
+    return _str(vs.GetFPathName()) if hasattr(vs, "GetFPathName") else _str(vs.GetFName())
 
 
 def revert(ops):
