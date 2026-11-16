@@ -1,0 +1,13 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --group dev
+      - run: uv run pytest -q
+      - name: Embedded Python 3.9 syntax
+        run: uv run python -c "import ast,pathlib; [ast.parse(p.read_text(),feature_version=(3,9)) for p in [pathlib.Path('src/vwmcp/vwlib.py'),pathlib.Path('vw-plugin/vwmcp/vwmcp_bridge.py')]]"
+      - run: uv build --wheel

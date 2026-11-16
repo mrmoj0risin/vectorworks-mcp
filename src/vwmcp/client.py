@@ -40,6 +40,7 @@ class Bridge:
         timeout: float = DEFAULT_TIMEOUT,
         poll_interval: float = 0.05,
     ):
+        self.bound_document = None
         self.root = Path(root)
         self.jobs = self.root / "jobs"
         self.results = self.root / "results"
@@ -76,7 +77,13 @@ class Bridge:
         job_id = self._new_job_id()
         job_path = self.jobs / f"{job_id}.json"
         result_path = self.results / f"{job_id}.json"
+        from vwmcp.operation import writing
         job = {"id": job_id, "code": code, "created": time.time(), "ttl": timeout}
+        if writing.get():
+            if not self.bound_document:
+                raise BridgeError("document_not_bound")
+            job["expected_document"] = self.bound_document
+            job["allowed_root"] = os.environ.get("VWMCP_ALLOWED_PROJECT_ROOT")
         tmp = job_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(job), encoding="utf-8")
         os.replace(tmp, job_path)

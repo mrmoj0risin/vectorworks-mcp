@@ -32,6 +32,8 @@ def vs(fake_vs):
 @pytest.fixture(autouse=True)
 def bridge(root, vs, monkeypatch):
     b = Bridge(root=root, trigger=Runner(root, vs), poll_interval=0.01, timeout=2)
+    b.bound_document = str((root / "Plot.vwx").resolve())
+    vs.GetFPathName = lambda: b.bound_document
     monkeypatch.setattr(app, "get_bridge", lambda: b)
     return b
 

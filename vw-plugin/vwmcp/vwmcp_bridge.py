@@ -5,7 +5,7 @@ A dumb executor. Each call to run_pending() claims the oldest job in
 <root>/results/<id>.json. All real logic lives in the MCP server.
 
 On macOS the server triggers run_pending() via AppleScript
-(`run Python script`), so nothing here ever loops or blocks the UI.
+(VectorScript calling the Python menu command), so nothing here ever loops or blocks the UI.
 One job per call keeps one tool call == one Vectorworks undo step.
 
 Keep this file small and dependency-free; bump BRIDGE_VERSION whenever
@@ -20,7 +20,7 @@ import os
 import time
 import traceback
 
-BRIDGE_VERSION = "0.1.0"
+BRIDGE_VERSION = "0.2.0"
 DEFAULT_ROOT = os.path.join(os.path.expanduser("~"), ".vwmcp")
 
 
@@ -101,6 +101,14 @@ def run_pending(root=DEFAULT_ROOT, vs_module=None, max_jobs=1):
             if ttl is not None and started - job.get("created", started) > ttl:
                 res["error"] = "job expired before Vectorworks picked it up"
             else:
+                expected = job.get("expected_document")
+                if expected:
+                    actual = os.path.realpath(vs_module.GetFPathName())
+                    if actual != os.path.realpath(expected):
+                        raise RuntimeError("wrong_document: active document differs from the bound project")
+                    allowed = job.get("allowed_root")
+                    if allowed and os.path.commonpath([actual, os.path.realpath(allowed)]) != os.path.realpath(allowed):
+                        raise RuntimeError("project_outside_allowed_root")
                 with contextlib.redirect_stdout(out):
                     value = _execute(job["code"], vs_module)
                 res["ok"] = True
